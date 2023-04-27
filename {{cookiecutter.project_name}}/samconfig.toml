@@ -1,0 +1,48 @@
+version = 0.1
+[dev]
+[dev.global.parameters]
+stack_name = "memo-backend-dev"
+
+[dev.build.parameters]
+cached = true
+parallel = true
+
+[dev.validate.parameters]
+lint = true
+
+[dev.deploy.parameters]
+resolve_s3 = true
+s3_prefix = "memo-backend-dev"
+region = "ap-northeast-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "EndpointConfigType=\"REGIONAL\" StageName=\"dev\""
+image_repositories = []
+
+[dev.sync.parameters]
+watch = true
+
+# ------------------------------------------
+
+[staging]
+[staging.global.parameters]
+stack_name = "memo-backend-staging"
+
+[staging.build.parameters]
+cached = true
+parallel = true
+
+[staging.validate.parameters]
+lint = true
+
+[staging.deploy.parameters]
+resolve_s3 = true
+s3_prefix = "memo-backend-staging"
+region = "ap-northeast-1"
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "EndpointConfigType=\"REGIONAL\" StageName=\"staging\""
+image_repositories = []
+
+[staging.sync.parameters]
+watch = true
+
+# ------------------------------------------

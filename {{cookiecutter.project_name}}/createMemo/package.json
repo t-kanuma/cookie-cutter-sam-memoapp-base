@@ -1,0 +1,16 @@
+{
+  "name": "create-memo",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "app.js",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.312.0",
+    "@aws-sdk/lib-dynamodb": "^3.312.0",
+    "esbuild": "^0.17.16",
+    "uuid": "^9.0.0"
+  },
+  "scripts": {},
+  "devDependencies": {
+    "@types/uuid": "^9.0.1"
+  }
+}

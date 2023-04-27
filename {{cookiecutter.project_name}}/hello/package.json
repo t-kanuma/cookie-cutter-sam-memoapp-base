@@ -1,0 +1,11 @@
+{
+  "name": "hello",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {},
+  "dependencies": {
+    "esbuild": "^0.17.16",
+    "node-fetch": "^3.3.0"
+  }
+}

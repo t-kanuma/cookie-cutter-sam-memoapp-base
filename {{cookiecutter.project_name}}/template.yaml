@@ -1,0 +1,294 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: MemoAppのバックエンド
+
+Globals:
+  Function:
+    Runtime: nodejs18.x
+    Handler: app.lambdaHandler
+    Timeout: 3
+    Architectures:
+      - x86_64
+    MemorySize: 128
+    Layers:
+      # - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:memo-app-common-lib-layer:1
+    Environment:
+      Variables:
+        REGION: !Ref AWS::Region
+        TABLE_NAME: !Sub ${AppName}-Memo-${StageName}
+        # TABLE_NAME: !FindInMap [TableNamePerStage, !Ref StageName, TableName]
+    # DeadLetterQueue: TODO
+
+# Mappings:
+#   TableNamePerStage:
+#     dev:
+#       TableName: MemoApp-Memo-dev
+#     staging:
+#       TableName: MemoApp-Memo-staging
+#     prod:
+#       TableName: MemoApp-Memo-prod
+
+Parameters:
+  EndpointConfigType:
+    Type: String
+    Default: REGIONAL
+  StageName:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+  AppName:
+    Type: String
+    Default: MemoApp
+  # Foo:
+  #   Type: String
+  #   Default: Baz
+
+Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub ${AppName}-Api-${StageName}
+      StageName: !Ref StageName
+      EndpointConfiguration:
+        Type: !Ref EndpointConfigType
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt UserPool.Arn
+      OpenApiVersion: "3.0.3"
+
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AppName}-UserPool-${StageName}
+      # example...
+      # Policies:
+      #   PasswordPolicy:
+      #     MinimumLength: 8
+      # UsernameAttributes:
+      #   - email
+      # Schema:
+      #   - AttributeDataType: String
+      #     Name: email
+      #     Required: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub ${AppName}-UserPoolClient-${StageName}
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+
+  MemoTableAccessFuncRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: "memo-table-func-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - dynamodb:Put*
+                  - dynamodb:Create*
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:Get*
+                  - dynamodb:BatchGetItem
+                  - dynamodb:List*
+                  - dynamodb:Describe*
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                  - dynamodb:Update*
+                  - dynamodb:RestoreTable*
+                  - dynamodb:Delete*
+                Resource: !Sub
+                  - "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}"
+                  - TableName:
+                      !Sub ${AppName}-Memo-${StageName}
+                      # !FindInMap [TableNamePerStage, !Ref StageName, TableName]
+
+  GetMemosFunc:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AppName}-GetMemos-${StageName}
+      CodeUri: getMemos/
+      Role: !GetAtt MemoTableAccessFuncRole.Arn
+      Events:
+        RestApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /memos
+            Method: get
+            Auth:
+              Authorizer: CognitoAuthorizer
+            # Lambda環境変数
+            # Environment:
+            #   Variables:
+            #     QUZ: !Ref FOO
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - app.ts
+
+  GetArchivesFunc:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AppName}-GetArchives-${StageName}
+      CodeUri: getArchives/
+      Role: !GetAtt MemoTableAccessFuncRole.Arn
+      Events:
+        RestApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /archives
+            Method: get
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - app.ts
+
+  CreateMemoFunc:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AppName}-CreateMemo-${StageName}
+      CodeUri: createMemo/
+      Role: !GetAtt MemoTableAccessFuncRole.Arn
+      Events:
+        RestApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /memos
+            Method: POST
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - app.ts
+
+  UpdateMemoFunc:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AppName}-UpdateMemo-${StageName}
+      CodeUri: updateMemo/
+      Role: !GetAtt MemoTableAccessFuncRole.Arn
+      Events:
+        RestApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /memos/{id}
+            Method: PUT
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - app.ts
+
+  DeleteArchiveFunc:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${AppName}-DeleteArchive-${StageName}
+      CodeUri: deleteArchive/
+      Role: !GetAtt MemoTableAccessFuncRole.Arn
+      Events:
+        RestApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /archives/{id}
+            Method: DELETE
+            Auth:
+              Authorizer: CognitoAuthorizer
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2022"
+        Sourcemap: true
+        EntryPoints:
+          - app.ts
+
+  MemoTbl:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      # TableName: !FindInMap [TableNamePerStage, !Ref StageName, Name]
+      TableName: !Sub ${AppName}-Memo-${StageName}
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+Outputs:
+  GetMemosFunc:
+    Description: "get memos lambda function ARN"
+    Value: !GetAtt GetMemosFunc.Arn
+  GetArchiveFunc:
+    Description: "get archives lambda function ARN"
+    Value: !GetAtt GetArchivesFunc.Arn
+  CreateMemoFunc:
+    Description: "createa memo lambda function ARN"
+    Value: !GetAtt CreateMemoFunc.Arn
+  UpdateMemoFunc:
+    Description: "update memo lambda function ARN"
+    Value: !GetAtt UpdateMemoFunc.Arn
+  DeleteArchiveFunc:
+    Description: "delete archive lambda function ARN"
+    Value: !GetAtt DeleteArchiveFunc.Arn
+  MemoTableAccessFuncRole:
+    Description: "Implicit IAM Role created for lambda functions that access memo table."
+    Value: !GetAtt MemoTableAccessFuncRole.Arn

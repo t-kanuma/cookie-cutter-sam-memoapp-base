@@ -1,0 +1,22 @@
+{
+  "name": "memo-sam-be",
+  "version": "1.0.0",
+  "type": "module",
+  "repository": "https://github.com/awslabs/aws-sam-cli/tree/develop/samcli/local/init/templates/cookiecutter-aws-sam-hello-nodejs",
+  "author": "SAM CLI",
+  "license": "MIT",
+  "scripts": {
+    "compile": "tsc",
+    "lint": "eslint --ext .ts ."
+  },
+  "devDependencies": {
+    "@tsconfig/node18": "^1.0.1",
+    "@types/aws-lambda": "^8.10.114",
+    "@types/node": "^18.15.11",
+    "@typescript-eslint/eslint-plugin": "^5.58.0",
+    "@typescript-eslint/parser": "^5.58.0",
+    "eslint": "^8.38.0",
+    "eslint-config-prettier": "^8.8.0",
+    "typescript": "^5.0.4"
+  }
+}
