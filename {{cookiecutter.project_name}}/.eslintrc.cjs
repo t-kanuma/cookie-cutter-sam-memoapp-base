@@ -3,7 +3,7 @@ module.exports = {
     es2022: true,
     node: true,
   },
-  extends: ["prettier", "plugin:@typescript-eslint/recommended"],
+  extends: ["plugin:@typescript-eslint/recommended", "prettier"],
   plugins: ["@typescript-eslint"],
   parser: "@typescript-eslint/parser",
   parserOptions: {
