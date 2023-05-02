@@ -1,1 +1,2 @@
-`sam init --location gh:t-kanuma/cookie-cutter-sam-memoapp-base`
+- `sam init --location gh:t-kanuma/cookie-cutter-sam-memoapp-base`
+- lib のバージョンを適宜アップデートする。
