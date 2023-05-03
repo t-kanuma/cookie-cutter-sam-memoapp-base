@@ -1,25 +1,44 @@
 version = 0.1
+
+# https://docs.aws.amazon.com/ja_jp/serverless-application-model/latest/developerguide/serverless-sam-cli-config.html
+
+[default]
+# sam validateで適用される
+[default.validate.parameters]
+# CFnLintを適用する。
+lint = true
+
+# sam buildで適用される
+[default.build.parameters]
+# build結果に変更がなければキャッシュを使う。
+cached = true
+# lambda functionとlamda layerを並列にbuildする。
+parallel = true
+
+# ---------------------------------------------------
+
 [dev]
+# sam {全てのcommand} --config-env devで適用される 
 [dev.global.parameters]
 stack_name = "memo-backend-dev"
 
-[dev.build.parameters]
-cached = true
-parallel = true
+# sam sync --config-env devで適用される。
+[dev.sync.parameters]
+# CFnと非同期でCloud環境と同期するStack名
+stack_name "memo-backend-dev"	
+# ローカルの変更をクラウドに自動同期する。
+watch = true
 
-[dev.validate.parameters]
-lint = true
-
+# sam deploy --config-env devで適用される。
 [dev.deploy.parameters]
+# S3バケットを自動的に作成する。
 resolve_s3 = true
 s3_prefix = "memo-backend-dev"
 region = "ap-northeast-1"
+# CFnに対しStackを正常に作ってもらえるようにIAMロールを付与する。
 capabilities = "CAPABILITY_IAM"
+# template.yamlに埋め込むパラメータ
 parameter_overrides = "EndpointConfigType=\"REGIONAL\" StageName=\"dev\""
-image_repositories = []
-
-[dev.sync.parameters]
-watch = true
 
 # ------------------------------------------
 
@@ -27,22 +46,11 @@ watch = true
 [staging.global.parameters]
 stack_name = "memo-backend-staging"
 
-[staging.build.parameters]
-cached = true
-parallel = true
-
-[staging.validate.parameters]
-lint = true
-
 [staging.deploy.parameters]
 resolve_s3 = true
 s3_prefix = "memo-backend-staging"
 region = "ap-northeast-1"
 capabilities = "CAPABILITY_IAM"
 parameter_overrides = "EndpointConfigType=\"REGIONAL\" StageName=\"staging\""
-image_repositories = []
-
-[staging.sync.parameters]
-watch = true
 
 # ------------------------------------------
