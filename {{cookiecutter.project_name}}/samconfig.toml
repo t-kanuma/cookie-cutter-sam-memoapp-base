@@ -25,7 +25,7 @@ stack_name = "memo-backend-dev"
 # sam sync --config-env devで適用される。
 [dev.sync.parameters]
 # CFnと非同期でCloud環境と同期するStack名
-stack_name "memo-backend-dev"	
+stack_name = "memo-backend-dev"	
 # ローカルの変更をクラウドに自動同期する。
 watch = true
 

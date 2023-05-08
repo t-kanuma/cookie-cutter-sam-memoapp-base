@@ -134,7 +134,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub ${AppName}-GetMemos-${StageName}
-      CodeUri: getMemos/
+      CodeUri: functions/getMemos/
       Role: !GetAtt MemoTableAccessFuncRole.Arn
       Events:
         RestApi:
@@ -162,7 +162,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub ${AppName}-GetArchives-${StageName}
-      CodeUri: getArchives/
+      CodeUri: functions/getArchives/
       Role: !GetAtt MemoTableAccessFuncRole.Arn
       Events:
         RestApi:
@@ -186,7 +186,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub ${AppName}-CreateMemo-${StageName}
-      CodeUri: createMemo/
+      CodeUri: functions/createMemo/
       Role: !GetAtt MemoTableAccessFuncRole.Arn
       Events:
         RestApi:
@@ -210,7 +210,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub ${AppName}-UpdateMemo-${StageName}
-      CodeUri: updateMemo/
+      CodeUri: functions/updateMemo/
       Role: !GetAtt MemoTableAccessFuncRole.Arn
       Events:
         RestApi:
@@ -234,7 +234,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Sub ${AppName}-DeleteArchive-${StageName}
-      CodeUri: deleteArchive/
+      CodeUri: functions/deleteArchive/
       Role: !GetAtt MemoTableAccessFuncRole.Arn
       Events:
         RestApi:
