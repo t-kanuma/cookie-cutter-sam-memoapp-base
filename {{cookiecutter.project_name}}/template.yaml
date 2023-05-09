@@ -12,7 +12,7 @@ Globals:
       - x86_64
     MemorySize: 128
     Layers:
-      # - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:memo-app-common-lib-layer:1
+      - !Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:layer:memo-app-common-lib-layer:11
     Environment:
       Variables:
         REGION: !Ref AWS::Region
@@ -40,6 +40,9 @@ Parameters:
   AppName:
     Type: String
     Default: MemoApp
+  NotifyNewMemoQueueName:
+    Type: String
+    Default: MemoApp-NotifyNewMemo-SourceQueue
   # Foo:
   #   Type: String
   #   Default: Baz
@@ -77,6 +80,7 @@ Resources:
       #     Name: email
       #     Required: false
 
+  # Vueアプリのこと
   UserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
@@ -87,6 +91,60 @@ Resources:
         - ALLOW_USER_SRP_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
 
+  # Policies
+  MemoTableAccessFuncPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "memo-table-func-policy"
+      Roles:
+        - !Ref MemoTableAccessFuncRole
+        - !Ref CreateMemoFuncRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "logs:CreateLogGroup"
+              - "logs:CreateLogStream"
+              - "logs:PutLogEvents"
+            Resource: "*"
+          - Effect: "Allow"
+            Action:
+              - dynamodb:Put*
+              - dynamodb:Create*
+              - dynamodb:BatchWriteItem
+              - dynamodb:Get*
+              - dynamodb:BatchGetItem
+              - dynamodb:List*
+              - dynamodb:Describe*
+              - dynamodb:Scan
+              - dynamodb:Query
+              - dynamodb:Update*
+              - dynamodb:RestoreTable*
+              - dynamodb:Delete*
+            # Resource: !GetAtt MemoTable.Arn
+            # あえてこういう書き方をしてみる
+            Resource: !Sub
+              - "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}"
+              - TableName:
+                  !Sub ${AppName}-Memo-${StageName}
+                  # !FindInMap [TableNamePerStage, !Ref StageName, TableName]
+
+  NotifyNewMemoPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "notify-new-memo-policy"
+      Roles:
+        - !Ref CreateMemoFuncRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - sqs:SendMessage
+            Resource: !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${NotifyNewMemoQueueName}-${StageName}"
+
+  # Roles
   MemoTableAccessFuncRole:
     Type: AWS::IAM::Role
     Properties:
@@ -99,36 +157,20 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - sts:AssumeRole
-      Policies:
-        - PolicyName: "memo-table-func-policy"
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: "Allow"
-                Action:
-                  - "logs:CreateLogGroup"
-                  - "logs:CreateLogStream"
-                  - "logs:PutLogEvents"
-                Resource: "*"
-              - Effect: "Allow"
-                Action:
-                  - dynamodb:Put*
-                  - dynamodb:Create*
-                  - dynamodb:BatchWriteItem
-                  - dynamodb:Get*
-                  - dynamodb:BatchGetItem
-                  - dynamodb:List*
-                  - dynamodb:Describe*
-                  - dynamodb:Scan
-                  - dynamodb:Query
-                  - dynamodb:Update*
-                  - dynamodb:RestoreTable*
-                  - dynamodb:Delete*
-                Resource: !Sub
-                  - "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}"
-                  - TableName:
-                      !Sub ${AppName}-Memo-${StageName}
-                      # !FindInMap [TableNamePerStage, !Ref StageName, TableName]
+
+  # SQSにメッセージを送るためのロール
+  CreateMemoFuncRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
 
   GetMemosFunc:
     Type: AWS::Serverless::Function
@@ -137,6 +179,7 @@ Resources:
       CodeUri: functions/getMemos/
       Role: !GetAtt MemoTableAccessFuncRole.Arn
       Events:
+        # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-property-function-api.html
         RestApi:
           Type: Api
           Properties:
@@ -187,7 +230,7 @@ Resources:
     Properties:
       FunctionName: !Sub ${AppName}-CreateMemo-${StageName}
       CodeUri: functions/createMemo/
-      Role: !GetAtt MemoTableAccessFuncRole.Arn
+      Role: !GetAtt CreateMemoFuncRole.Arn
       Events:
         RestApi:
           Type: Api
@@ -197,6 +240,9 @@ Resources:
             Method: POST
             Auth:
               Authorizer: CognitoAuthorizer
+      Environment:
+        Variables:
+          QUEUE_URL: !Sub https://sqs.ap-northeast-1.amazonaws.com/${AWS::AccountId}/${NotifyNewMemoQueueName}-${StageName}
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
